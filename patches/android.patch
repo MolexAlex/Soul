@@ -12,7 +12,7 @@ index d463225..576556b 100644
      sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']
  
 diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
-index 1fa994a..c26a4a9 100644
+index 1fa994a..762b41a 100644
 --- a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
 +++ b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
 @@ -10,6 +10,7 @@ import android.net.Uri;
@@ -23,7 +23,7 @@ index 1fa994a..c26a4a9 100644
  
  import androidx.core.content.FileProvider;
  
-@@ -51,7 +52,28 @@ public class ApplicationLoaderImpl extends ApplicationLoader {
+@@ -51,7 +52,33 @@ public class ApplicationLoaderImpl extends ApplicationLoader {
  
      @Override
      protected void checkForUpdatesInternal() {
@@ -34,7 +34,7 @@ index 1fa994a..c26a4a9 100644
 +    public boolean isCustomUpdate() {
 +        return !TextUtils.isEmpty(BuildConfig.SOUL_UPDATE_MANIFEST_URL);
 +    }
-+
+ 
 +    @Override
 +    public void checkUpdate(boolean force, Runnable whenDone) {
 +        SoulUpdater.getInstance().check(force, whenDone);
@@ -44,7 +44,12 @@ index 1fa994a..c26a4a9 100644
 +    public BetaUpdate getUpdate() {
 +        return SoulUpdater.getInstance().getUpdate();
 +    }
- 
++
++    @Override
++    public boolean isDownloadingUpdate() {
++        return SoulUpdater.getInstance().isDownloading();
++    }
++
 +    @Override
 +    public boolean showCustomUpdateAppPopup(Context context, BetaUpdate update, int account) {
 +        SoulUpdater.getInstance().showUpdateDialog(context, update);
@@ -54,10 +59,10 @@ index 1fa994a..c26a4a9 100644
      protected void appCenterLogInternal(Throwable e) {
 diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java
 new file mode 100644
-index 0000000..e58214f
+index 0000000..d0d8cf7
 --- /dev/null
 +++ b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,208 @@
 +package org.telegram.messenger;
 +
 +import android.app.Activity;
@@ -101,6 +106,10 @@ index 0000000..e58214f
 +
 +    public BetaUpdate getUpdate() {
 +        return update;
++    }
++
++    public boolean isDownloading() {
++        return downloading;
 +    }
 +
 +    public void check(boolean force, Runnable whenDone) {
