@@ -1,0 +1,7 @@
+/android/
+/desktop/
+/scripts/__pycache__/
+/scripts/move-to-sda1.sh
+/release-assets/
+*.apk
+*.keystore

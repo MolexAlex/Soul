@@ -1,0 +1,314 @@
+diff --git a/Telegram/Resources/update/manifest.min.json b/Telegram/Resources/update/manifest.min.json
+index c7e2beb..4799360 100644
+--- a/Telegram/Resources/update/manifest.min.json
++++ b/Telegram/Resources/update/manifest.min.json
+@@ -1 +1 @@
+-{"format":1,"manifest_version":2,"issued":1787184000,"expires":1826668800,"keys":[{"id":"rl-2026b","alg":"Ed25519","x":"C8sDZ7G_3-v5DPKBjqcU6hCNFJjC1z8ggFcCyoVLtC0"},{"id":"rc-2026a","alg":"ES256","crv":"P-256","x":"STnSOvgTXqkfM-TelsKMG6UVPHIuoB23vf5ckVKu-JU","y":"yejET3nS79sqDDT0LeH4ZfcnNc-X36DotOAtdrOashM"},{"id":"cp-2026a","alg":"ES256","crv":"P-256","x":"Nn5D71VdtoaXuCAdLBixdeMbLpy8ApzZMfp8iMtqE9Q","y":"K6K_enSIa5KChVV1oAC7Bxfkr9t3RTR_iQAR9Ls21yc","expires":1821398400},{"id":"cx-2026a","alg":"ES256","crv":"P-256","x":"gsX8hFpkokAvvHqFhZ65D2cv0zLfDVpS60961hho6PM","y":"SrAhvdW1waKh_81Imyoc0Pa3e-2HsNZXC9qeRY4Mbn8","expires":1821398400}],"channels":{"stable":[["rl-2026b"],["rc-2026a"]],"beta":[["rl-2026b"],["rc-2026a"]],"canary-public":[["cp-2026a"]],"canary-private":[["cx-2026a"]]},"revoked":["rl-2026a"]}
+\ No newline at end of file
++{"format":1,"manifest_version":1,"issued":1791658794,"expires":2107018794,"keys":[{"id":"soul-2026a","alg":"Ed25519","x":"kpfBf5YQWtwB0u63vloyOjKVoHWYVg7ZoHZobFncl50"}],"channels":{"stable":[["soul-2026a"]],"beta":[["soul-2026a"]],"canary-public":[["soul-2026a"]],"canary-private":[["soul-2026a"]]},"revoked":[]}
+\ No newline at end of file
+diff --git a/Telegram/Resources/update/manifest.sig b/Telegram/Resources/update/manifest.sig
+index 614df02dd3e2ec64fe36026221ca334905af0d37..aa9b85b96edee62adfb63e557cca6e4dcbd83678 100644
+GIT binary patch
+literal 64
+zcmX?JsBH7YLA>MY$ud6QN6S|gEfib3mnmmo>8yn^39D<LyzPj+6K|GsNPMGx-o64u
+WzA%&PE7kf{!an}(+^c=ShY0`xgdX_-
+
+literal 64
+zcmdn&{OJ5_$8$@BW@=xP`T1}w|6M-O1)V_$`=3NTt$ESAdQsDl6Fp%IXB&w>y(jmV
+XYh6qz)7g|S8g~<oCU@oYPvZapcS#{|
+
+diff --git a/Telegram/Resources/update/root-public.pem b/Telegram/Resources/update/root-public.pem
+index a5028f6..108bff1 100644
+--- a/Telegram/Resources/update/root-public.pem
++++ b/Telegram/Resources/update/root-public.pem
+@@ -1,3 +1,3 @@
+ -----BEGIN PUBLIC KEY-----
+-MCowBQYDK2VwAyEARgB8IFZWA08OzifsbPQ3SRdGbON2ecPVsMm1Qo7QNR0=
++MCowBQYDK2VwAyEAgkMhhcRohgQGVgxpreNNz8GyIVcWruLKwx0LBqzayks=
+ -----END PUBLIC KEY-----
+diff --git a/Telegram/SourceFiles/core/update_checker.cpp b/Telegram/SourceFiles/core/update_checker.cpp
+index 73eee14..79fd332 100644
+--- a/Telegram/SourceFiles/core/update_checker.cpp
++++ b/Telegram/SourceFiles/core/update_checker.cpp
+@@ -1733,20 +1733,12 @@ void Updater::start(bool forceWait) {
+ 		}
+ #endif // !Q_OS_WIN && !Q_OS_MAC
+ 	} else if (sendRequest) {
+-		if (BuildIsCanary) {
+-			// Canary builds discover updates only through their own MTP
+-			// channels, the v1 HTTP feed serves other channels.
+-			startImplementation(&_httpImplementation, nullptr);
+-		} else {
+-			startImplementation(
+-				&_httpImplementation,
+-				std::make_unique<HttpChecker>(_testing));
+-		}
++		startImplementation(
++			&_httpImplementation,
++			std::make_unique<HttpChecker>(_testing));
+ 		startImplementation(
+ 			&_mtpImplementation,
+-			std::make_unique<MtpChecker>(
+-				LookupCanaryPrivateSession(_session),
+-				_testing));
++			nullptr);
+ 
+ 		_checking.fire({});
+ 	} else {
+diff --git a/Telegram/SourceFiles/core/version.h b/Telegram/SourceFiles/core/version.h
+index 2de2881..76d2700 100644
+--- a/Telegram/SourceFiles/core/version.h
++++ b/Telegram/SourceFiles/core/version.h
+@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #endif // TDESKTOP_ALLOW_CLOSED_ALPHA
+ 
+ // used in Updater.cpp and Setup.iss for Windows
+-constexpr auto AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"_cs;
+-constexpr auto AppNameOld = "Telegram Win (Unofficial)"_cs;
+-constexpr auto AppName = "Telegram Desktop"_cs;
++constexpr auto AppId = "{60BC33D0-090E-4905-81BC-28CAEE6EFAD2}"_cs;
++constexpr auto AppNameOld = "Soul"_cs;
++constexpr auto AppName = "Soul"_cs;
+ constexpr auto AppFile = "Telegram"_cs;
+ constexpr auto AppVersion = 7003001;
+ constexpr auto AppVersionStr = "7.3.1";
+diff --git a/Telegram/SourceFiles/storage/localstorage.cpp b/Telegram/SourceFiles/storage/localstorage.cpp
+index 03c4568..bd61a74 100644
+--- a/Telegram/SourceFiles/storage/localstorage.cpp
++++ b/Telegram/SourceFiles/storage/localstorage.cpp
+@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
+ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ */
+ #include "storage/localstorage.h"
++#include "soul_update_config.h"
+ 
+ #include "storage/serialize_common.h"
+ #include "storage/storage_account.h"
+@@ -543,6 +544,10 @@ QString autoupdatePrefixFile() {
+ 
+ const QString &readAutoupdatePrefixRaw() {
+ 	Expects(!Core::UpdaterDisabled());
++	const auto soulPrefix = QString::fromLatin1(SOUL_UPDATE_PREFIX);
++	if (!soulPrefix.isEmpty()) {
++		return AutoupdatePrefix(soulPrefix);
++	}
+ 
+ 	const auto &result = AutoupdatePrefix();
+ 	if (!result.isEmpty()) {
+@@ -562,6 +567,9 @@ void writeAutoupdatePrefix(const QString &prefix) {
+ 	if (Core::UpdaterDisabled()) {
+ 		return;
+ 	}
++	if (!QString::fromLatin1(SOUL_UPDATE_PREFIX).isEmpty()) {
++		return;
++	}
+ 
+ 	const auto current = readAutoupdatePrefixRaw();
+ 	if (current != prefix) {
+diff --git a/Telegram/build/build.bat b/Telegram/build/build.bat
+index 3e5f698..8bb7a8f 100644
+--- a/Telegram/build/build.bat
++++ b/Telegram/build/build.bat
+@@ -3,15 +3,6 @@ setlocal enabledelayedexpansion
+ set "FullScriptPath=%~dp0"
+ set "FullExecPath=%cd%"
+ 
+-if not exist "%FullScriptPath%..\..\..\DesktopPrivate" (
+-  echo.
+-  echo This script is for building the production version of Telegram Desktop.
+-  echo.
+-  echo For building custom versions please visit the build instructions page at:
+-  echo https://github.com/telegramdesktop/tdesktop/#build-instructions
+-  exit /b
+-)
+-
+ FOR /F "tokens=1* delims= " %%i in (%FullScriptPath%target) do set "BuildTarget=%%i"
+ 
+ set "Build64=0"
+@@ -33,19 +24,17 @@ if "%BuildTarget%" equ "win64" (
+ 
+ set "HomePath=%FullScriptPath%.."
+ set "ResourcesPath=%HomePath%\Resources"
+-rem Update signing settings. Edit these directly when rotating keys, they are
+-rem the single source of truth (no environment overrides).
+-set "ReleaseCloudVault=tdesktop-release-kv"
+-set "ReleaseCloudKeyId=rc-2026a"
+-set "ReleaseCloudKeyName=release-2026a"
+-set "ReleaseLocalKey=%HomePath%\..\..\DesktopPrivate\modern\release-local-2026b.pem"
+-set "ReleaseLocalKeyId=rl-2026b"
++set "ReleaseLocalKey=%SOUL_RELEASE_KEY%"
++set "ReleaseLocalKeyId=soul-2026a"
+ if %BuildUWP% equ 0 (
++  if "%ReleaseLocalKey%" equ "" (
++    echo Set SOUL_RELEASE_KEY to the Soul release-private.pem path.
++    exit /b 1
++  )
+   if not exist "%ReleaseLocalKey%" (
+     echo Release local key not found: %ReleaseLocalKey%
+     exit /b 1
+   )
+-  python "%FullScriptPath%sign_update.py" --check --az-vault "%ReleaseCloudVault%" --az-key "%ReleaseCloudKeyName%" --keys-loc "%ResourcesPath%\update" --key-id %ReleaseCloudKeyId% || goto error
+ )
+ 
+ if %Build64% neq 0 (
+@@ -266,13 +255,10 @@ if %BuildUWP% equ 0 (
+   )
+ 
+   if %BuildARM% neq 0 (
+-    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
++    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -local-key "%ReleaseLocalKey%" -local-key-id %ReleaseLocalKeyId% || goto error
+   ) else (
+-    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
++    call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -local-key "%ReleaseLocalKey%" -local-key-id %ReleaseLocalKeyId% || goto error
+   )
+-  call :signupdate
+-  call Packer.exe -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -unsigned "%UpdateFile%.unsigned" -embed-signatures %ReleaseCloudKeyId%:release-cloud.sig -local-key "%ReleaseLocalKey%" -local-key-id %ReleaseLocalKeyId% || goto error
+-  del signing-input.bin release-cloud.sig "%UpdateFile%.unsigned"
+ 
+   if %AlphaVersion% neq 0 (
+     if not exist "%ReleasePath%\%AlphaKeyFile%" (
+@@ -440,12 +426,6 @@ echo Signing %1 failed, retrying in 3 seconds..
+ timeout /t 3
+ goto sign
+ 
+-:signupdate
+-python "%FullScriptPath%sign_update.py" --input signing-input.bin --output release-cloud.sig --az-vault "%ReleaseCloudVault%" --az-key "%ReleaseCloudKeyName%" && exit /b 0
+-echo Cloud signing of %UpdateFile% failed, retrying in 10 seconds (fix az login / network in another terminal)..
+-timeout /t 10
+-goto signupdate
+-
+ :packportable
+ 7z a -mx9 %PortableFile% %BinaryName%\ || goto packportableretry
+ 7z t %PortableFile% || goto packportableretry
+diff --git a/Telegram/build/build.sh b/Telegram/build/build.sh
+index da99f5f..f2145eb 100755
+--- a/Telegram/build/build.sh
++++ b/Telegram/build/build.sh
+@@ -8,15 +8,6 @@ arg1="$1"
+ arg2="$2"
+ arg3="$3"
+ 
+-if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
+-  echo ""
+-  echo "This script is for building the production version of Telegram Desktop."
+-  echo ""
+-  echo "For building custom versions please visit the build instructions page at:"
+-  echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
+-  exit
+-fi
+-
+ Error () {
+   cd $FullExecPath
+   echo "$1"
+@@ -38,24 +29,13 @@ fi
+ 
+ UpdateKeysLoc="$FullScriptPath/../Resources/update"
+ 
+-# Update signing settings. Edit these directly when rotating keys, they are
+-# the single source of truth (no environment overrides).
+-ReleaseLocalKey="$FullScriptPath/../../../DesktopPrivate/modern/release-local-2026b.pem"
+-ReleaseLocalKeyId="rl-2026b"
+-ReleaseCloudVault="tdesktop-release-kv"
+-ReleaseCloudKeyId="rc-2026a"
+-ReleaseCloudKeyName="release-2026a"
++ReleaseLocalKey="${SOUL_RELEASE_KEY:-$HOME/.local/share/Soul/signing/release-private.pem}"
++ReleaseLocalKeyId="soul-2026a"
+ 
+ if [ "$BuildTarget" != "macstore" ]; then
+   if [ ! -f "$ReleaseLocalKey" ]; then
+     Error "Release local key not found: $ReleaseLocalKey"
+   fi
+-  python3 "$FullScriptPath/sign_update.py" --check \
+-    --az-vault "$ReleaseCloudVault" \
+-    --az-key "$ReleaseCloudKeyName" \
+-    --keys-loc "$UpdateKeysLoc" \
+-    --key-id "$ReleaseCloudKeyId" \
+-    || Error "Cloud update signing is not ready, fix the setup above before building."
+ fi
+ 
+ while IFS='' read -r line || [[ -n "$line" ]]; do
+@@ -102,27 +82,11 @@ elif [ "$BuildTarget" == "mac" ]; then
+   BackupFolder="mac"
+ fi
+ 
+-SignUpdate() {
+-  until python3 "$FullScriptPath/sign_update.py" \
+-      --input signing-input.bin \
+-      --output release-cloud.sig \
+-      --az-vault "$ReleaseCloudVault" \
+-      --az-key "$ReleaseCloudKeyName"; do
+-    echo "Cloud signing of $UpdateFile failed, retrying in 10 seconds (fix az login / network in another terminal).."
+-    sleep 10
+-  done
+-}
+-
+ PackUpdate() {
+   "./Packer" "$@" -version $VersionForPacker -channel $UpdateChannel \
+-    -keys-loc "$UpdateKeysLoc" -emit-signing-input signing-input.bin
+-  SignUpdate
+-  "./Packer" -channel $UpdateChannel -keys-loc "$UpdateKeysLoc" \
+-    -unsigned "$UpdateFile.unsigned" \
+-    -embed-signatures "$ReleaseCloudKeyId:release-cloud.sig" \
++    -keys-loc "$UpdateKeysLoc" \
+     -local-key "$ReleaseLocalKey" \
+     -local-key-id "$ReleaseLocalKeyId"
+-  rm signing-input.bin release-cloud.sig "$UpdateFile.unsigned"
+ }
+ 
+ echo ""
+diff --git a/Telegram/build/setup.iss b/Telegram/build/setup.iss
+index b71266e..e35b039 100644
+--- a/Telegram/build/setup.iss
++++ b/Telegram/build/setup.iss
+@@ -1,9 +1,9 @@
+-#define MyAppShortName "Telegram"
+-#define MyAppName "Telegram Desktop"
+-#define MyAppPublisher "Telegram FZ-LLC"
+-#define MyAppURL "https://desktop.telegram.org"
++#define MyAppShortName "Soul"
++#define MyAppName "Soul"
++#define MyAppPublisher "MolexAlex"
++#define MyAppURL "https://github.com/MolexAlex/Soul"
+ #define MyAppExeName "Telegram.exe"
+-#define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
++#define MyAppId "60BC33D0-090E-4905-81BC-28CAEE6EFAD2"
+ #define CurrentYear GetDateTimeString('yyyy','','')
+ 
+ [Setup]
+diff --git a/Telegram/cmake/soul_update_config.h.in b/Telegram/cmake/soul_update_config.h.in
+new file mode 100644
+index 0000000..9115493
+--- /dev/null
++++ b/Telegram/cmake/soul_update_config.h.in
+@@ -0,0 +1,3 @@
++#pragma once
++
++#define SOUL_UPDATE_PREFIX "@SOUL_UPDATE_PREFIX@"
+diff --git a/Telegram/cmake/telegram_options.cmake b/Telegram/cmake/telegram_options.cmake
+index 049f39c..f6675e0 100644
+--- a/Telegram/cmake/telegram_options.cmake
++++ b/Telegram/cmake/telegram_options.cmake
+@@ -37,6 +37,22 @@ if (TDESKTOP_API_ID STREQUAL "0" OR TDESKTOP_API_HASH STREQUAL "")
+     " ")
+ endif()
+ 
++set(SOUL_RELEASE_REPOSITORY "MolexAlex/Soul" CACHE STRING "GitHub owner/repository for Soul updates")
++if (SOUL_RELEASE_REPOSITORY STREQUAL "")
++    set(DESKTOP_APP_DISABLE_AUTOUPDATE ON)
++    set(SOUL_UPDATE_PREFIX "")
++else()
++    if (NOT SOUL_RELEASE_REPOSITORY MATCHES "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
++        message(FATAL_ERROR "SOUL_RELEASE_REPOSITORY must be owner/repository")
++    endif()
++    set(SOUL_UPDATE_PREFIX "https://github.com/${SOUL_RELEASE_REPOSITORY}/releases/latest/download")
++endif()
++configure_file(
++    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/soul_update_config.h.in
++    ${CMAKE_CURRENT_BINARY_DIR}/gen/soul_update_config.h
++    @ONLY)
++target_include_directories(Telegram PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/gen)
++
+ if (DESKTOP_APP_DISABLE_AUTOUPDATE)
+     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
+ endif()

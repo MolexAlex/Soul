@@ -1,0 +1,288 @@
+diff --git a/TMessagesProj_AppStandalone/build.gradle b/TMessagesProj_AppStandalone/build.gradle
+index d463225..576556b 100644
+--- a/TMessagesProj_AppStandalone/build.gradle
++++ b/TMessagesProj_AppStandalone/build.gradle
+@@ -28,6 +28,8 @@ android {
+     buildToolsVersion '36.0.0'
+ 
+     defaultConfig.applicationId = APP_PACKAGE
++    def soulUpdateUrl = (project.findProperty('SOUL_UPDATE_MANIFEST_URL') ?: 'https://github.com/MolexAlex/Soul/releases/latest/download/android-update.json').toString()
++    defaultConfig.buildConfigField 'String', 'SOUL_UPDATE_MANIFEST_URL', '"' + soulUpdateUrl.replace('\\', '\\\\').replace('"', '\\"') + '"'
+ 
+     sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']
+ 
+diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
+index 1fa994a..c26a4a9 100644
+--- a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
++++ b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
+@@ -10,6 +10,7 @@ import android.net.Uri;
+ import android.os.Build;
+ import android.text.SpannableStringBuilder;
+ import android.view.ViewGroup;
++import android.text.TextUtils;
+ 
+ import androidx.core.content.FileProvider;
+ 
+@@ -51,7 +52,28 @@ public class ApplicationLoaderImpl extends ApplicationLoader {
+ 
+     @Override
+     protected void checkForUpdatesInternal() {
++        SoulUpdater.getInstance().check(false, null);
++    }
++
++    @Override
++    public boolean isCustomUpdate() {
++        return !TextUtils.isEmpty(BuildConfig.SOUL_UPDATE_MANIFEST_URL);
++    }
++
++    @Override
++    public void checkUpdate(boolean force, Runnable whenDone) {
++        SoulUpdater.getInstance().check(force, whenDone);
++    }
++
++    @Override
++    public BetaUpdate getUpdate() {
++        return SoulUpdater.getInstance().getUpdate();
++    }
+ 
++    @Override
++    public boolean showCustomUpdateAppPopup(Context context, BetaUpdate update, int account) {
++        SoulUpdater.getInstance().showUpdateDialog(context, update);
++        return true;
+     }
+ 
+     protected void appCenterLogInternal(Throwable e) {
+diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java
+new file mode 100644
+index 0000000..e58214f
+--- /dev/null
++++ b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/SoulUpdater.java
+@@ -0,0 +1,204 @@
++package org.telegram.messenger;
++
++import android.app.Activity;
++import android.app.AlertDialog;
++import android.content.Context;
++import android.content.Intent;
++import android.content.pm.PackageInfo;
++import android.net.Uri;
++import android.os.Build;
++import android.provider.Settings;
++import android.text.TextUtils;
++import android.widget.Toast;
++
++import androidx.core.content.FileProvider;
++
++import org.json.JSONObject;
++import org.telegram.messenger.web.BuildConfig;
++import org.telegram.messenger.web.R;
++import org.telegram.ui.web.HttpGetFileTask;
++import org.telegram.ui.web.HttpGetTask;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.net.URL;
++import java.security.MessageDigest;
++
++public final class SoulUpdater {
++    private static final long CHECK_INTERVAL = 24L * 60 * 60 * 1000;
++    private static final long MAX_APK_SIZE = 500L * 1024 * 1024;
++    private static final SoulUpdater INSTANCE = new SoulUpdater();
++
++    public static SoulUpdater getInstance() {
++        return INSTANCE;
++    }
++
++    private BetaUpdate update;
++    private String apkUrl;
++    private String sha256;
++    private boolean checking;
++    private boolean downloading;
++
++    public BetaUpdate getUpdate() {
++        return update;
++    }
++
++    public void check(boolean force, Runnable whenDone) {
++        final String manifestUrl = BuildConfig.SOUL_UPDATE_MANIFEST_URL;
++        if (TextUtils.isEmpty(manifestUrl) || checking) {
++            if (whenDone != null) whenDone.run();
++            return;
++        }
++        if (!isGitHubManifestUrl(manifestUrl)) {
++            FileLog.e("Soul update manifest URL must be a GitHub Releases asset");
++            if (whenDone != null) whenDone.run();
++            return;
++        }
++        final Context context = ApplicationLoader.applicationContext;
++        final long lastCheck = context.getSharedPreferences("soul_updater", Context.MODE_PRIVATE)
++                .getLong("last_check", 0);
++        if (!force && System.currentTimeMillis() - lastCheck < CHECK_INTERVAL) {
++            if (whenDone != null) whenDone.run();
++            return;
++        }
++        checking = true;
++        new HttpGetTask(response -> {
++            checking = false;
++            try {
++                final JSONObject json = new JSONObject(response);
++                final String version = json.getString("version");
++                final int versionCode = json.getInt("version_code");
++                final String url = json.getString("file_url");
++                final String hash = json.getString("sha256");
++                if (!isGitHubReleaseUrl(url) || !hash.matches("[a-fA-F0-9]{64}")) {
++                    throw new IllegalArgumentException("Invalid Soul update metadata");
++                }
++                final PackageInfo installed = context.getPackageManager()
++                        .getPackageInfo(context.getPackageName(), 0);
++                if (versionCode > installed.versionCode) {
++                    update = new BetaUpdate(version, versionCode, json.optString("changelog", ""));
++                    apkUrl = url;
++                    sha256 = hash;
++                } else {
++                    update = null;
++                    apkUrl = null;
++                    sha256 = null;
++                }
++                context.getSharedPreferences("soul_updater", Context.MODE_PRIVATE).edit()
++                        .putLong("last_check", System.currentTimeMillis()).apply();
++            } catch (Exception e) {
++                FileLog.e(e);
++                if (force) toast(context, R.string.SoulUpdateFailed);
++            }
++            if (whenDone != null) whenDone.run();
++        }).execute(manifestUrl);
++    }
++
++    public void showUpdateDialog(Context context, BetaUpdate available) {
++        if (!(context instanceof Activity) || available == null || apkUrl == null) return;
++        new AlertDialog.Builder(context)
++                .setTitle(R.string.SoulUpdateTitle)
++                .setMessage(context.getString(R.string.SoulUpdateMessage, available.version))
++                .setNegativeButton(android.R.string.cancel, null)
++                .setPositiveButton(R.string.SoulUpdateDownload, (dialog, which) -> download((Activity) context))
++                .show();
++    }
++
++    private void download(Activity activity) {
++        if (downloading || update == null || apkUrl == null || sha256 == null) return;
++        final String expectedHash = sha256;
++        final int expectedCode = update.versionCode;
++        downloading = true;
++        toast(activity, R.string.SoulUpdateDownloading);
++        final File destination = new File(activity.getFilesDir(), "cache/soul-update.apk");
++        final File parent = destination.getParentFile();
++        if (parent == null || (!parent.isDirectory() && !parent.mkdirs())) {
++            downloading = false;
++            toast(activity, R.string.SoulUpdateFailed);
++            return;
++        }
++        new HttpGetFileTask(file -> {
++            if (file == null) {
++                downloading = false;
++                toast(activity, R.string.SoulUpdateFailed);
++                return;
++            }
++            new Thread(() -> {
++                final boolean valid = verifyApk(activity, file, expectedHash, expectedCode);
++                AndroidUtilities.runOnUIThread(() -> {
++                    downloading = false;
++                    if (valid) {
++                        install(activity, file);
++                    } else {
++                        file.delete();
++                        toast(activity, R.string.SoulUpdateFailed);
++                    }
++                });
++            }, "Soul update verification").start();
++        }, null).setDestFile(destination).setMaxSize(MAX_APK_SIZE).execute(apkUrl);
++    }
++
++    private static boolean verifyApk(Context context, File file, String expectedHash, int expectedCode) {
++        try {
++            if (!file.isFile() || file.length() == 0 || file.length() > MAX_APK_SIZE) return false;
++            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
++            try (FileInputStream stream = new FileInputStream(file)) {
++                final byte[] buffer = new byte[8192];
++                int count;
++                while ((count = stream.read(buffer)) != -1) digest.update(buffer, 0, count);
++            }
++            final StringBuilder actualHash = new StringBuilder(64);
++            for (byte value : digest.digest()) actualHash.append(String.format("%02x", value & 0xff));
++            if (!expectedHash.equalsIgnoreCase(actualHash.toString())) return false;
++            final PackageInfo apk = context.getPackageManager().getPackageArchiveInfo(file.getAbsolutePath(), 0);
++            final PackageInfo installed = context.getPackageManager()
++                    .getPackageInfo(context.getPackageName(), 0);
++            return apk != null && context.getPackageName().equals(apk.packageName)
++                    && apk.versionCode == expectedCode && expectedCode > installed.versionCode;
++        } catch (Exception e) {
++            FileLog.e(e);
++            return false;
++        }
++    }
++
++    private static void install(Activity activity, File file) {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
++                && !activity.getPackageManager().canRequestPackageInstalls()) {
++            toast(activity, R.string.SoulUpdatePermission);
++            activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
++                    Uri.parse("package:" + activity.getPackageName())));
++            return;
++        }
++        final Uri uri = FileProvider.getUriForFile(activity,
++                activity.getPackageName() + ".provider", file);
++        final Intent intent = new Intent(Intent.ACTION_VIEW)
++                .setDataAndType(uri, "application/vnd.android.package-archive")
++                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
++        activity.startActivity(intent);
++    }
++
++    private static boolean isGitHubReleaseUrl(String value) {
++        try {
++            final URL url = new URL(value);
++            return "https".equals(url.getProtocol()) && "github.com".equals(url.getHost())
++                    && url.getPath().contains("/releases/download/")
++                    && url.getPath().endsWith(".apk");
++        } catch (Exception e) {
++            return false;
++        }
++    }
++
++    private static boolean isGitHubManifestUrl(String value) {
++        try {
++            final URL url = new URL(value);
++            return "https".equals(url.getProtocol()) && "github.com".equals(url.getHost())
++                    && url.getPath().matches("/[^/]+/[^/]+/releases/latest/download/android-update\\.json");
++        } catch (Exception e) {
++            return false;
++        }
++    }
++
++    private static void toast(Context context, int message) {
++        Toast.makeText(context, message, Toast.LENGTH_LONG).show();
++    }
++}
+diff --git a/TMessagesProj_AppStandalone/src/main/res/values/strings.xml b/TMessagesProj_AppStandalone/src/main/res/values/strings.xml
+index bd34604..db84e92 100644
+--- a/TMessagesProj_AppStandalone/src/main/res/values/strings.xml
++++ b/TMessagesProj_AppStandalone/src/main/res/values/strings.xml
+@@ -1,5 +1,12 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
++    <string name="AppName">Soul</string>
++    <string name="SoulUpdateTitle">Обновление Soul</string>
++    <string name="SoulUpdateMessage">Доступна версия %1$s. Скачать и установить обновление?</string>
++    <string name="SoulUpdateDownload">Скачать</string>
++    <string name="SoulUpdateDownloading">Soul загружает обновление</string>
++    <string name="SoulUpdateFailed">Не удалось проверить или загрузить обновление</string>
++    <string name="SoulUpdatePermission">Разрешите установку из Soul, затем повторите обновление</string>
+     <string name="SmsJobsMenu">SMS Statistics</string>
+ 
+     <string name="SmsJobsPremiumHintTitle">Premium Subscription **for free**</string>
+@@ -77,4 +84,4 @@
+ 
+     <string name="SmsNotificationTitle">Telegram Premium for SMS</string>
+     <string name="SmsNotificationSubtitle">%1$d of %2$d SMS Sent</string>
+-</resources>
+\ No newline at end of file
++</resources>
