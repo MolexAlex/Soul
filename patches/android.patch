@@ -1,5 +1,48 @@
+diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
+index 85a9f84..29a6170 100644
+--- a/TMessagesProj/build.gradle
++++ b/TMessagesProj/build.gradle
+@@ -117,6 +117,14 @@ android {
+     buildToolsVersion '36.0.0'
+     ndkVersion "27.2.12479018"
+ 
++    def soulApiId = (project.findProperty('SOUL_API_ID') ?: '0').toString()
++    def soulApiHash = (project.findProperty('SOUL_API_HASH') ?: '').toString()
++    if (!soulApiId.matches('[0-9]+') || !soulApiHash.matches('([a-fA-F0-9]{32})?')) {
++        throw new GradleException('SOUL_API_ID and SOUL_API_HASH must be valid Telegram API credentials')
++    }
++    defaultConfig.buildConfigField 'int', 'SOUL_API_ID', soulApiId
++    defaultConfig.buildConfigField 'String', 'SOUL_API_HASH', '"' + soulApiHash + '"'
++
+     sourceSets.main.jniLibs.srcDirs = ['./jni/']
+ 
+     externalNativeBuild {
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java b/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+index 4ed7e64..f1b84cb 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+@@ -26,8 +26,8 @@ public class BuildVars {
+     public static boolean NO_SCOPED_STORAGE = Build.VERSION.SDK_INT <= 29;
+     public static String BUILD_VERSION_STRING = BuildConfig.BUILD_VERSION_STRING;
+ 
+-    public static int APP_ID = 4;
+-    public static String APP_HASH = "014b35b6184100b085b0d0572f9b5103";
++    public static int APP_ID = BuildConfig.SOUL_API_ID;
++    public static String APP_HASH = BuildConfig.SOUL_API_HASH;
+ 
+     // SafetyNet key for Google Identity SDK, set it to empty to disable
+     public static String SAFETYNET_KEY = "AIzaSyDqt8P-7F7CPCseMkOiVRgb1LY8RN1bvH8";
+@@ -41,7 +41,7 @@ public class BuildVars {
+     public static boolean IS_BILLING_UNAVAILABLE = false;
+ 
+     // works only on official app ids, disable on your forks
+-    public static boolean SUPPORTS_PASSKEYS = true;
++    public static boolean SUPPORTS_PASSKEYS = false;
+ 
+     static {
+         if (ApplicationLoader.applicationContext != null) {
 diff --git a/TMessagesProj_AppStandalone/build.gradle b/TMessagesProj_AppStandalone/build.gradle
-index d463225..e7cc2e9 100644
+index d463225..24d32d6 100644
 --- a/TMessagesProj_AppStandalone/build.gradle
 +++ b/TMessagesProj_AppStandalone/build.gradle
 @@ -1,6 +1,21 @@
@@ -24,16 +67,22 @@ index d463225..e7cc2e9 100644
  repositories {
      mavenCentral()
      google()
-@@ -28,6 +43,8 @@ android {
+@@ -27,7 +42,13 @@ android {
+     compileSdkVersion 36
      buildToolsVersion '36.0.0'
  
-     defaultConfig.applicationId = APP_PACKAGE
+-    defaultConfig.applicationId = APP_PACKAGE
++    def soulPackage = (project.findProperty('SOUL_APP_PACKAGE') ?: 'com.molexalex.soul').toString()
++    if (!soulPackage.matches('[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+')) {
++        throw new GradleException('SOUL_APP_PACKAGE must be a valid Android package ID')
++    }
++    defaultConfig.applicationId = soulPackage
 +    def soulUpdateUrl = (project.findProperty('SOUL_UPDATE_MANIFEST_URL') ?: 'https://github.com/MolexAlex/Soul/releases/latest/download/android-update.json').toString()
 +    defaultConfig.buildConfigField 'String', 'SOUL_UPDATE_MANIFEST_URL', '"' + soulUpdateUrl.replace('\\', '\\\\').replace('"', '\\"') + '"'
  
      sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']
  
-@@ -51,17 +68,17 @@ android {
+@@ -51,17 +72,17 @@ android {
  
      signingConfigs {
          debug {
@@ -59,6 +108,22 @@ index d463225..e7cc2e9 100644
          }
      }
  
+@@ -70,7 +91,6 @@ android {
+             debuggable true
+             jniDebuggable true
+             signingConfig signingConfigs.debug
+-            applicationIdSuffix ".web"
+             minifyEnabled false
+             multiDexEnabled true
+             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), '../TMessagesProj/proguard-rules.pro'
+@@ -81,7 +101,6 @@ android {
+             debuggable false
+             jniDebuggable false
+             signingConfig signingConfigs.release
+-            applicationIdSuffix ".web"
+             minifyEnabled true
+             shrinkResources true
+             multiDexEnabled true
 diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
 index 1fa994a..762b41a 100644
 --- a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java

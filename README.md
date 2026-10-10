@@ -33,9 +33,9 @@ bash scripts/bootstrap.sh
 - Генераторы манифеста Android и ленты Desktop находятся в `scripts/`.
 - Полная сборка и установка обновления ещё не проверены: на текущей машине нет
   Android SDK и зависимостей для CMake Desktop.
-- Для выпуска нужны собственные Telegram API ID и API hash, отдельный Android
-  package ID и конфигурация Google Services для нового package ID либо
-  адаптация сборки без Google Services.
+- Для выпуска нужны собственные Telegram API ID и API hash и конфигурация
+  Google Services для Android package ID `com.molexalex.soul` либо адаптация
+  сборки без Google Services.
 
 Обновления по умолчанию берутся из `MolexAlex/Soul`. Android-сборка принимает другой адрес манифеста через
 параметр Gradle `-PSOUL_UPDATE_MANIFEST_URL=https://github.com/OWNER/Soul/releases/latest/download/android-update.json`.
@@ -45,7 +45,7 @@ bash scripts/bootstrap.sh
 
 ```bash
 python3 scripts/make-android-update.py --repository MolexAlex/Soul --tag v1.0.0 \
-  --version 1.0.0 --version-code 100 --apk Soul-android.apk
+  --version 12.10.6 --version-code 71129 --apk Soul-android.apk
 ```
 
 Android сверяет SHA-256, идентификатор пакета и код версии APK перед передачей
@@ -55,7 +55,14 @@ Android сверяет SHA-256, идентификатор пакета и ко�
 через `SOUL_ANDROID_SIGNING_PROPERTIES`. Рабочий ключ на машине автора лежит в
 `~/.local/share/Soul/signing` и не публикуется. Сделайте его резервную копию:
 без этого ключа уже установленные APK Soul нельзя будет обновить. Отдельный
-идентификатор пакета ещё требуется до первого выпуска.
+идентификатор пакета `com.molexalex.soul` уже задан для standalone-сборки;
+поменять его можно Gradle-параметром `SOUL_APP_PACKAGE`. Замените
+`android/TMessagesProj_AppStandalone/google-services.json` конфигурацией
+Firebase для этого package ID. Для входа в Telegram передайте свои
+`SOUL_API_ID` и `SOUL_API_HASH` через Gradle-свойства, например переменные
+`ORG_GRADLE_PROJECT_SOUL_API_ID` и `ORG_GRADLE_PROJECT_SOUL_API_HASH`.
+Пример кода версии выше относится к текущей сборке `afatStandalone`;
+для релиза он должен совпадать с фактическим `versionCode` APK.
 
 Desktop использует собственные ключи обновлений Soul. Публичный ключ и
 подписанный манифест применяются из `patches/desktop.patch`; приватные ключи
