@@ -2,14 +2,15 @@ diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
 index 85a9f84..29a6170 100644
 --- a/TMessagesProj/build.gradle
 +++ b/TMessagesProj/build.gradle
-@@ -117,6 +117,14 @@ android {
+@@ -117,6 +117,15 @@ android {
      buildToolsVersion '36.0.0'
      ndkVersion "27.2.12479018"
  
 +    def soulApiId = (project.findProperty('SOUL_API_ID') ?: '0').toString()
 +    def soulApiHash = (project.findProperty('SOUL_API_HASH') ?: '').toString()
-+    if (!soulApiId.matches('[0-9]+') || !soulApiHash.matches('([a-fA-F0-9]{32})?')) {
-+        throw new GradleException('SOUL_API_ID and SOUL_API_HASH must be valid Telegram API credentials')
++    if (!soulApiId.matches('[1-9][0-9]*') || !soulApiHash.matches('[a-fA-F0-9]{32}') ||
++            new BigInteger(soulApiId) > Integer.MAX_VALUE) {
++        throw new GradleException('Set valid SOUL_API_ID and SOUL_API_HASH before building Soul (see https://my.telegram.org)')
 +    }
 +    defaultConfig.buildConfigField 'int', 'SOUL_API_ID', soulApiId
 +    defaultConfig.buildConfigField 'String', 'SOUL_API_HASH', '"' + soulApiHash + '"'
