@@ -1,8 +1,30 @@
 diff --git a/TMessagesProj_AppStandalone/build.gradle b/TMessagesProj_AppStandalone/build.gradle
-index d463225..576556b 100644
+index d463225..e7cc2e9 100644
 --- a/TMessagesProj_AppStandalone/build.gradle
 +++ b/TMessagesProj_AppStandalone/build.gradle
-@@ -28,6 +28,8 @@ android {
+@@ -1,6 +1,21 @@
+ apply plugin: 'com.android.application'
+ apply plugin: 'org.telegram.build-app-plugin'
+ 
++def soulSigningPath = project.findProperty('SOUL_ANDROID_SIGNING_PROPERTIES') \
++        ?: System.getenv('SOUL_ANDROID_SIGNING_PROPERTIES') \
++        ?: "${System.getProperty('user.home')}/.local/share/Soul/signing/android.properties"
++def soulSigningFile = file(soulSigningPath)
++if (!soulSigningFile.isFile()) {
++    throw new GradleException("Soul signing properties not found: ${soulSigningFile}")
++}
++def soulSigning = new Properties()
++soulSigningFile.withInputStream { soulSigning.load(it) }
++['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].each { propertyName ->
++    if (!soulSigning.getProperty(propertyName)) {
++        throw new GradleException("Missing ${propertyName} in Soul signing properties")
++    }
++}
++
+ repositories {
+     mavenCentral()
+     google()
+@@ -28,6 +43,8 @@ android {
      buildToolsVersion '36.0.0'
  
      defaultConfig.applicationId = APP_PACKAGE
@@ -10,6 +32,32 @@ index d463225..576556b 100644
 +    defaultConfig.buildConfigField 'String', 'SOUL_UPDATE_MANIFEST_URL', '"' + soulUpdateUrl.replace('\\', '\\\\').replace('"', '\\"') + '"'
  
      sourceSets.main.jniLibs.srcDirs = ['../TMessagesProj/jni/']
+ 
+@@ -51,17 +68,17 @@ android {
+ 
+     signingConfigs {
+         debug {
+-            storeFile file("../TMessagesProj/config/release.keystore")
+-            storePassword RELEASE_STORE_PASSWORD
+-            keyAlias RELEASE_KEY_ALIAS
+-            keyPassword RELEASE_KEY_PASSWORD
++            storeFile file(soulSigning.getProperty('storeFile'))
++            storePassword soulSigning.getProperty('storePassword')
++            keyAlias soulSigning.getProperty('keyAlias')
++            keyPassword soulSigning.getProperty('keyPassword')
+         }
+ 
+         release {
+-            storeFile file("../TMessagesProj/config/release.keystore")
+-            storePassword RELEASE_STORE_PASSWORD
+-            keyAlias RELEASE_KEY_ALIAS
+-            keyPassword RELEASE_KEY_PASSWORD
++            storeFile file(soulSigning.getProperty('storeFile'))
++            storePassword soulSigning.getProperty('storePassword')
++            keyAlias soulSigning.getProperty('keyAlias')
++            keyPassword soulSigning.getProperty('keyPassword')
+         }
+     }
  
 diff --git a/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java b/TMessagesProj_AppStandalone/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java
 index 1fa994a..762b41a 100644

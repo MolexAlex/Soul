@@ -34,8 +34,8 @@ bash scripts/bootstrap.sh
 - Полная сборка и установка обновления ещё не проверены: на текущей машине нет
   Android SDK и зависимостей для CMake Desktop.
 - Для выпуска нужны собственные Telegram API ID и API hash, отдельный Android
-  package ID, Android-ключ подписи и конфигурация Google Services для нового
-  package ID либо адаптация сборки без Google Services.
+  package ID и конфигурация Google Services для нового package ID либо
+  адаптация сборки без Google Services.
 
 Обновления по умолчанию берутся из `MolexAlex/Soul`. Android-сборка принимает другой адрес манифеста через
 параметр Gradle `-PSOUL_UPDATE_MANIFEST_URL=https://github.com/OWNER/Soul/releases/latest/download/android-update.json`.
@@ -49,9 +49,13 @@ python3 scripts/make-android-update.py --repository MolexAlex/Soul --tag v1.0.0 
 ```
 
 Android сверяет SHA-256, идентификатор пакета и код версии APK перед передачей
-файла системному установщику. Релизы Soul должны подписываться собственным
-постоянным ключом Android. Настройка отдельного идентификатора пакета и подписи
-ещё требуется до первого выпуска.
+файла системному установщику. Сборка Soul использует свой постоянный Android
+ключ вместо тестового ключа Telegram. На новой машине создайте его командой
+`python3 scripts/create-android-key.py`; путь к файлу свойств можно изменить
+через `SOUL_ANDROID_SIGNING_PROPERTIES`. Рабочий ключ на машине автора лежит в
+`~/.local/share/Soul/signing` и не публикуется. Сделайте его резервную копию:
+без этого ключа уже установленные APK Soul нельзя будет обновить. Отдельный
+идентификатор пакета ещё требуется до первого выпуска.
 
 Desktop использует собственные ключи обновлений Soul. Публичный ключ и
 подписанный манифест применяются из `patches/desktop.patch`; приватные ключи
